@@ -29,6 +29,7 @@
 #include <QEvent>
 #include <QTimer>
 #include <QWidget>
+#include <QPainterPath>
 
 class Waveform : public QWidget
 {

@@ -1,13 +1,13 @@
-Source: deepin-voice-recorder
+Source: gxde-voice-recorder
 Section: utils
 Priority: optional
-Maintainer: Deepin Packages Builder <packages@deepin.com>
-Build-Depends: debhelper (>= 9), pkg-config, qt5-qmake, qttools5-dev-tools, libdtkwidget-dev, libavformat-dev
+Maintainer: 3025613752@qq.com
+Build-Depends: debhelper (>= 9), pkg-config, qt5-qmake, qttools5-dev-tools, libdtkwidget2-dev, libavformat-dev
 Standards-Version: 3.9.8
-Homepage: https://github.com/linuxdeepin/deepin-voice-recorder
+Homepage: https://github.com/GXDE-OS/gxde-voice-recorder
 
-Package: deepin-voice-recorder
+Package: gxde-voice-recorder
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, libqt5multimedia5-plugins
-Description: Voice recorder application for deepin
- deepin voice recorder tool.
+Description: Voice recorder application for GXDE
+ GXDE voice recorder tool.

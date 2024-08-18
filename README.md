@@ -1,6 +1,6 @@
-# Deepin Voice Recorder
+# GXDE Voice Recorder
 
-This is default voice recorder application for Deepin.
+This is default voice recorder application for GXDE.
 
 ## Dependencies
 
@@ -16,13 +16,13 @@ libavcodec57 (>= 7:3.2.2) | libavcodec-extra57 (>= 7:3.2.2), libavformat57 (>= 7
 * cd build
 * qmake ..
 * make
-* ./deepin-voice-recorder
+* ./gxde-voice-recorder
 
 ## Usage
 
 ## Config file
 Configure file save at:
-~/.config/deepin/deepin-voice-recorder/config.conf
+~/.config/deepin/gxde-voice-recorder/config.conf
 
 ## Getting help
 
@@ -42,4 +42,4 @@ We encourage you to report issues and contribute changes
 
 ## License
 
-Deepin Voice Recorder is licensed under [GPLv3](LICENSE).
+GXDE Voice Recorder is licensed under [GPLv3](LICENSE).

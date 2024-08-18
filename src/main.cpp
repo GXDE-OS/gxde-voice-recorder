@@ -39,29 +39,29 @@ int main(int argc, char *argv[])
 
     const char *descriptionText =
         QT_TRANSLATE_NOOP("MainWindow",
-                          "Deepin Voice Recorder is a simple, beautiful and easy to use "
+                          "GXDE Voice Recorder is a simple, beautiful and easy to use "
                           "voice recording application. It supports visual recording, "
                           "playback, recordings management and other functions.");
 
-    const QString acknowledgementLink = "https://www.deepin.org/acknowledgments/deepin-voice-recorder#thanks";
+    const QString acknowledgementLink = "https://gxde.gfdgdxi.top";
 
     DApplication app(argc, argv);
     app.setAttribute(Qt::AA_UseHighDpiPixmaps);
 
-    if (app.setSingleInstance("deepin-voice-recorder")) {
+    if (app.setSingleInstance("gxde-voice-recorder")) {
         app.loadTranslator();
 
-        app.setOrganizationName("deepin");
-        app.setApplicationName("deepin-voice-recorder");
+        app.setOrganizationName("GXDE");
+        app.setApplicationName("gxde-voice-recorder");
         app.setApplicationVersion(DApplication::buildVersion("1.0"));
 
         app.setProductIcon(QIcon(Utils::getQrcPath("logo_96.svg")));
-        app.setProductName(DApplication::translate("MainWindow", "Deepin Voice Recorder"));
+        app.setProductName(DApplication::translate("MainWindow", "GXDE Voice Recorder"));
         app.setApplicationDescription(DApplication::translate("MainWindow", descriptionText) + "\n");
         app.setApplicationAcknowledgementPage(acknowledgementLink);
 
         app.setTheme("light");
-        app.setWindowIcon(QIcon(Utils::getQrcPath("deepin-voice-recorder.svg")));
+        app.setWindowIcon(QIcon(Utils::getQrcPath("gxde-voice-recorder.svg")));
 
         MainWindow window;
 

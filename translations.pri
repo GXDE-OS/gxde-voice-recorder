@@ -1,2 +1,2 @@
 TRANSLATIONS += \
-    translations/deepin-voice-recorder_zh_CN.ts
+    translations/gxde-voice-recorder_zh_CN.ts

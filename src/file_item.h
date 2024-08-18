@@ -29,6 +29,7 @@
 #include <QLabel>
 #include <QListWidgetItem>
 #include <QWidget>
+#include <QPainterPath>
 
 #include "dimagebutton.h"
 #include "label.h"

@@ -358,7 +358,7 @@ int FileItem::getDuration()
 {
     int64_t duration = 0;
 
-    av_register_all();
+    //av_register_all();
     AVFormatContext *pFormatCtx = avformat_alloc_context();
     avformat_open_input(&pFormatCtx, fileInfo.absoluteFilePath().toStdString().c_str(), NULL, NULL);
 
