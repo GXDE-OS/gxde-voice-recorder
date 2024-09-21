@@ -73,6 +73,7 @@ isEmpty(TRANSLATIONS) {
 
 }
 
+!system($$PWD/translate_generation.sh): error("Failed to generate translation")
 TRANSLATIONS_COMPILED = $$TRANSLATIONS
 TRANSLATIONS_COMPILED ~= s/\.ts/.qm/g
 

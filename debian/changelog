@@ -1,9 +1,8 @@
-gxde-voice-recorder (1.4.1) UNRELEASED; urgency=medium
+gxde-voice-recorder (1.4.2) UNRELEASED; urgency=medium
 
   * Non-maintainer upload.
-  * 
 
- -- gfdgd_xi <3025613752@qq.com>  Sun, 18 Aug 2024 09:16:56 +0800
+ -- gfdgd_xi <3025613752@qq.com>  Sat, 21 Sep 2024 22:10:29 +0800
 
 gxde-voice-recorder (1.3.6-1) unstable; urgency=low
 
