@@ -1,4 +1,6 @@
-<?xml version="1.0" ?><!DOCTYPE TS><TS language="zh_TW" version="2.1">
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="zh_TW">
 <context>
     <name>FileView</name>
     <message>
@@ -30,14 +32,22 @@
         <translation>開啟儲存位置</translation>
     </message>
     <message>
-        <location filename="../src/main.cpp" line="41"/>
         <source>Deepin Voice Recorder is a simple, beautiful and easy to use voice recording application. It supports visual recording, playback, recordings management and other functions.</source>
-        <translation>Deepin 錄音機是個美觀、簡單且易用的錄音程式，具備波形圖顯示、回放錄音內容、管理錄音等功能。</translation>
+        <translation type="vanished">Deepin 錄音機是個美觀、簡單且易用的錄音程式，具備波形圖顯示、回放錄音內容、管理錄音等功能。</translation>
+    </message>
+    <message>
+        <source>Deepin Voice Recorder</source>
+        <translation type="vanished">Deepin 錄音</translation>
+    </message>
+    <message>
+        <location filename="../src/main.cpp" line="41"/>
+        <source>GXDE Voice Recorder is a simple, beautiful and easy to use voice recording application. It supports visual recording, playback, recordings management and other functions.</source>
+        <translation>GXDE 錄音機是個美觀、簡單且易用的錄音程式，具備波形圖顯示、回放錄音內容、管理錄音等功能。</translation>
     </message>
     <message>
         <location filename="../src/main.cpp" line="59"/>
-        <source>Deepin Voice Recorder</source>
-        <translation>Deepin 錄音</translation>
+        <source>GXDE Voice Recorder</source>
+        <translation>GXDE 錄音</translation>
     </message>
 </context>
 <context>
