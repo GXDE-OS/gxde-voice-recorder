@@ -24,7 +24,9 @@
 #ifndef RECORDPAGE_H
 #define RECORDPAGE_H
 
-#include <QAudioRecorder>
+#include <QMediaCaptureSession>
+#include <QMediaRecorder>
+#include <QAudioInput>
 #include <QVBoxLayout>
 #include <atomic>
 #include <thread>
@@ -118,7 +120,9 @@ public slots:
 private:
     ExpandAnimationButton *expandAnimationButton;
     AudioLevelMonitor *audioLevelMonitor;
-    QAudioRecorder *audioRecorder;
+    QMediaCaptureSession *captureSession;
+    QMediaRecorder *mediaRecorder;
+    QAudioInput *audioInput;
     QDateTime lastUpdateTime;
     QHBoxLayout *buttonLayout;
     QLabel *recordTimeLabel;

@@ -25,6 +25,7 @@
 #define LISTPAGE_H
 
 #include <QMediaPlayer>
+#include <QAudioOutput>
 #include <QVBoxLayout>
 
 #include "dimagebutton.h"
@@ -50,7 +51,7 @@ public:
 
 public slots:
     void handleClickRecordButton();
-    void handleStateChanged(QMediaPlayer::State state);
+    void handleStateChanged(QMediaPlayer::PlaybackState state);
     void pause(QString filepath);
     void play(QString filepath);
     void renderLevel(qreal level);
@@ -65,6 +66,7 @@ signals:
 
 private:
     AudioLevelMonitor *audioLevelMonitor;
+    QAudioOutput *audioOutput;
     QMediaPlayer *audioPlayer;
     Waveform *waveform;
 };

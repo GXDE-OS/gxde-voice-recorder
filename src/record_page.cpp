@@ -21,8 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <QAudioEncoderSettings>
-#include <QAudioRecorder>
 #include <QDate>
 #include <QDebug>
 #include <QWidget>
@@ -38,6 +36,7 @@
 #include <QUrl>
 #include <QVBoxLayout>
 #include <QApplication>
+#include <QMediaFormat>
 #include <DHiDPIHelper>
 #ifdef __cplusplus
 extern "C" {
@@ -502,23 +501,19 @@ RecordPage::RecordPage(QWidget *parent) : QWidget(parent)
     layout->addWidget(buttonAreaWidget);
     layout->addSpacing(30);     // NOTE: bottom buttons padding
 
-    audioRecorder = new QAudioRecorder(this);
-    qDebug() << "support codecs:" << audioRecorder->supportedAudioCodecs();
-    qDebug() << "support containers:" << audioRecorder->supportedContainers();
+    captureSession = new QMediaCaptureSession(this);
+    audioInput = new QAudioInput(this);
+    mediaRecorder = new QMediaRecorder(this);
 
-    QAudioEncoderSettings audioSettings;
-    audioSettings.setQuality(QMultimedia::HighQuality);
+    captureSession->setAudioInput(audioInput);
+    captureSession->setRecorder(mediaRecorder);
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 9, 0)
-    audioRecorder->setAudioSettings(audioSettings);
-    audioRecorder->setContainerFormat("audio/x-wav");
-#else
-    audioSettings.setCodec("audio/PCM");
-    audioRecorder->setAudioSettings(audioSettings);
-    audioRecorder->setContainerFormat("wav");
-#endif
+    QMediaFormat format;
+    format.setFileFormat(QMediaFormat::Wave);         
+    mediaRecorder->setMediaFormat(format);
 
-    // FFmpeg-based level monitor replaces QAudioProbe (deprecated/removed in newer Qt).
+    mediaRecorder->setQuality(QMediaRecorder::HighQuality);
+
     audioLevelMonitor = new AudioLevelMonitor(this);
     connect(audioLevelMonitor, &AudioLevelMonitor::levelReady, this, &RecordPage::renderLevel);
 
@@ -571,7 +566,16 @@ void RecordPage::handleClickFinishButton()
 
 void RecordPage::renderRecordingTime()
 {
-    if (audioRecorder->state() != QMediaRecorder::StoppedState) {
+    if (mediaRecorder->recorderState() == QMediaRecorder::RecordingState) {
+        QDateTime currentTime = QDateTime::currentDateTime();
+        recordingTime += lastUpdateTime.msecsTo(currentTime);
+        lastUpdateTime = currentTime;
+        recordTimeLabel->setText(Utils::formatMillisecond(recordingTime));
+    } else if (mediaRecorder->recorderState() == QMediaRecorder::PausedState) {
+        // Paused: just display current value, don't advance time,
+        // and update lastUpdateTime so when we resume we don't
+        // count the paused duration.
+        lastUpdateTime = QDateTime::currentDateTime();
         recordTimeLabel->setText(Utils::formatMillisecond(recordingTime));
     }
 }
@@ -579,17 +583,17 @@ void RecordPage::renderRecordingTime()
 void RecordPage::startRecord()
 {
     recordPath = generateRecordingFilepath();
-    audioRecorder->setOutputLocation(recordPath);
+    mediaRecorder->setOutputLocation(QUrl::fromLocalFile(recordPath));
 
     QDateTime currentTime = QDateTime::currentDateTime();
     lastUpdateTime = currentTime;
-    audioRecorder->record();
+    mediaRecorder->record();
     audioLevelMonitor->start();
 }
 
 void RecordPage::stopRecord()
 {
-    audioRecorder->stop();
+    mediaRecorder->stop();
     audioLevelMonitor->stop();
     tickerTimer->stop();
 }
@@ -605,7 +609,7 @@ void RecordPage::exitRecord()
 
 void RecordPage::pauseRecord()
 {
-    audioRecorder->pause();
+    mediaRecorder->pause();
     audioLevelMonitor->pause();
 }
 
@@ -614,7 +618,7 @@ void RecordPage::resumeRecord()
     QDateTime currentTime = QDateTime::currentDateTime();
     lastUpdateTime = currentTime;
 
-    audioRecorder->record();
+    mediaRecorder->record();
     audioLevelMonitor->resume();
 }
 
@@ -632,10 +636,6 @@ void RecordPage::renderLevel(qreal level)
 {
     qreal mapped = pow(level, 0.8); 
     if (mapped > 1.0) mapped = 1.0;
-
-    QDateTime currentTime = QDateTime::currentDateTime();
-    recordingTime += lastUpdateTime.msecsTo(currentTime);
-    lastUpdateTime = currentTime;
 
     waveform->updateWave(mapped);
 }

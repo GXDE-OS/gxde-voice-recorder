@@ -197,7 +197,7 @@ FileItem::FileItem(QWidget *parent) : QWidget(parent)
                                                      });
 }
 
-void FileItem::enterEvent(QEvent *event)
+void FileItem::enterEvent(QEnterEvent *event)
 {
     emit enter();
 
@@ -272,7 +272,7 @@ void FileItem::paintEvent(QPaintEvent *event)
 
         QPainterPath path;
         path.addRoundedRect(QRectF(rect()), 5, 5);
-        painter.fillPath(path, colorBlend(window()->palette().color(QPalette::Background), QColor(0, 0, 0, 0.05 * 255)));
+        painter.fillPath(path, colorBlend(window()->palette().color(QPalette::Window), QColor(0, 0, 0, 0.05 * 255)));
     }
 
     QWidget::paintEvent(event);

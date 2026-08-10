@@ -48,7 +48,7 @@ public:
     QString getRecodingFilepath();
     bool eventFilter(QObject *, QEvent *event);
     int getDuration();
-    void enterEvent(QEvent *event);
+    void enterEvent(QEnterEvent *event);
     void highlight();
     void paintEvent(QPaintEvent *);
     void setFileInfo(QFileInfo info);

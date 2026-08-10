@@ -48,6 +48,8 @@ ListPage::ListPage(QWidget *parent) : QWidget(parent)
     connect(this, &ListPage::playFinished, fileView, &FileView::handlePlayFinish);
 
     audioPlayer = new QMediaPlayer(this);
+    audioOutput = new QAudioOutput(this);
+    audioPlayer->setAudioOutput(audioOutput);
 
     connect(audioPlayer, SIGNAL(stateChanged(QMediaPlayer::State)), this, SLOT(handleStateChanged(QMediaPlayer::State)));
 
@@ -92,7 +94,7 @@ void ListPage::play(QString filepath)
     waveform->show();
     waveform->clearWave();
 
-    audioPlayer->setMedia(QUrl::fromLocalFile(filepath));
+    audioPlayer->setSource(QUrl::fromLocalFile(filepath));
     audioPlayer->play();
     audioLevelMonitor->startFile(filepath);
 }
@@ -128,7 +130,7 @@ void ListPage::renderLevel(qreal level)
     waveform->updateWave(level);
 }
 
-void ListPage::handleStateChanged(QMediaPlayer::State state)
+void ListPage::handleStateChanged(QMediaPlayer::PlaybackState state)
 {
     if (state == QMediaPlayer::StoppedState) {
         audioLevelMonitor->stop();
@@ -141,8 +143,8 @@ void ListPage::handleStateChanged(QMediaPlayer::State state)
 
 QString ListPage::getPlayingFilepath()
 {
-    if (audioPlayer->isAudioAvailable()) {
-        return audioPlayer->media().resources().first().url().path();
+    if (audioPlayer->hasAudio()) {
+        return audioPlayer->source().toLocalFile();
     } else {
         return "";
     }

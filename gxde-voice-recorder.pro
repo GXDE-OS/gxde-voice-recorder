@@ -8,7 +8,7 @@ INCLUDEPATH += .
 
 CONFIG += link_pkgconfig
 CONFIG += c++11 
-PKGCONFIG += dtkwidget libavformat libavcodec libavutil libavdevice
+PKGCONFIG += dtk2widget libavformat libavcodec libavutil libavdevice
 RESOURCES = gxde-voice-recorder.qrc
 
 # Input
@@ -46,7 +46,7 @@ SOURCES += src/main.cpp \
 QT += core
 QT += widgets
 QT += gui
-QT += multimedia
+QT += multimedia multimediawidgets
 
 QMAKE_CXXFLAGS += -g
 
@@ -82,11 +82,11 @@ INSTALLS += translations
 CONFIG *= update_translations release_translations
 
 CONFIG(update_translations) {
-    isEmpty(lupdate):lupdate=lupdate
+    isEmpty(lupdate):lupdate=/usr/lib/qt6/bin/lupdate
     system($$lupdate -no-obsolete -locations none $$_PRO_FILE_)
 }
 CONFIG(release_translations) {
-    isEmpty(lrelease):lrelease=lrelease
+    isEmpty(lrelease):lrelease=/usr/lib/qt6/bin/lrelease
     system($$lrelease $$_PRO_FILE_)
 }
 

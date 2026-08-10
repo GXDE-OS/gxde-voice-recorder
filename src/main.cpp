@@ -24,7 +24,6 @@
 #include <DApplication>
 #include <DMainWindow>
 #include <QApplication>
-#include <QDesktopWidget>
 #include <DWidgetUtil>
 #include <DHiDPIHelper>
 

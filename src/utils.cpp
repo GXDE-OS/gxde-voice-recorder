@@ -77,7 +77,7 @@ QSize Utils::getRenderSize(int fontSize, QString string)
     int width = 0;
     int height = 0;
     foreach (auto line, string.split("\n")) {
-        int lineWidth = fm.width(line);
+        int lineWidth = fm.horizontalAdvance(line);
         int lineHeight = fm.height();
 
         if (lineWidth > width) {
@@ -124,9 +124,9 @@ QString Utils::formatMillisecond(int millisecond)
 {
     if (millisecond / 1000 < 3600) {
         // At least need return 1 seconds.
-        return QDateTime::fromTime_t(std::max(1, millisecond / 1000)).toUTC().toString("mm:ss");
+        return QDateTime::fromSecsSinceEpoch(std::max(1, millisecond / 1000)).toUTC().toString("mm:ss");
     } else {
-        return QDateTime::fromTime_t(millisecond / 1000).toUTC().toString("hh:mm:ss");
+        return QDateTime::fromSecsSinceEpoch(millisecond / 1000).toUTC().toString("hh:mm:ss");
     }
 }
 
