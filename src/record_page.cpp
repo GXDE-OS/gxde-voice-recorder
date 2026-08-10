@@ -22,21 +22,36 @@
  */
 
 #include <QAudioEncoderSettings>
-#include <QAudioProbe>
 #include <QAudioRecorder>
 #include <QDate>
 #include <QDebug>
 #include <QWidget>
 #include <QDir>
+#include <QFile>
 #include <QFont>
 #include <QHBoxLayout>
 #include <QKeyEvent>
 #include <QStandardPaths>
 #include <QTime>
+#include <QTimer>
+#include <QtEndian>
 #include <QUrl>
 #include <QVBoxLayout>
 #include <QApplication>
 #include <DHiDPIHelper>
+#ifdef __cplusplus
+extern "C" {
+#endif
+#include <libavcodec/avcodec.h>
+#include <libavdevice/avdevice.h>
+#include <libavformat/avformat.h>
+#include <libavutil/avutil.h>
+#include <libavutil/opt.h>
+#ifdef __cplusplus
+}
+#endif
+
+#include <chrono>
 
 #include "dimagebutton.h"
 #include "record_page.h"
@@ -45,6 +60,377 @@
 #include "waveform.h"
 
 DWIDGET_USE_NAMESPACE
+
+static int audioLevelMonitorInterruptCb(void *opaque)
+{
+    auto *monitor = static_cast<AudioLevelMonitor *>(opaque);
+    return monitor->isRunning() ? 0 : 1;  
+}
+
+static qreal computeFramePeak(AVFrame *frame, int channels)
+{
+    int samples = frame->nb_samples;
+    qreal peak = 0.0;
+
+    switch (frame->format) {
+    case AV_SAMPLE_FMT_S16: {
+        const int16_t *d = reinterpret_cast<const int16_t *>(frame->data[0]);
+        for (int i = 0; i < samples * channels; ++i) {
+            qreal v = qAbs(qreal(d[i]) / SHRT_MAX);
+            if (v > peak) peak = v;
+        }
+        break;
+    }
+    case AV_SAMPLE_FMT_S32: {
+        const int32_t *d = reinterpret_cast<const int32_t *>(frame->data[0]);
+        for (int i = 0; i < samples * channels; ++i) {
+            qreal v = qAbs(qreal(d[i]) / INT_MAX);
+            if (v > peak) peak = v;
+        }
+        break;
+    }
+    case AV_SAMPLE_FMT_FLT: {
+        const float *d = reinterpret_cast<const float *>(frame->data[0]);
+        for (int i = 0; i < samples * channels; ++i) {
+            qreal v = qAbs(qreal(d[i]));
+            if (v > peak) peak = v;
+        }
+        break;
+    }
+    case AV_SAMPLE_FMT_FLTP: {
+        for (int c = 0; c < channels; ++c) {
+            const float *d = reinterpret_cast<const float *>(frame->data[c]);
+            for (int i = 0; i < samples; ++i) {
+                qreal v = qAbs(qreal(d[i]));
+                if (v > peak) peak = v;
+            }
+        }
+        break;
+    }
+    default:
+        break;
+    }
+
+    return peak;
+}
+
+AudioLevelMonitor::AudioLevelMonitor(QObject *parent)
+    : QObject(parent), recordingTimer(nullptr),
+      latestPeak(-1.0), running(false), paused(false), recordingMode(false)
+{
+}
+
+AudioLevelMonitor::~AudioLevelMonitor()
+{
+    stop();
+}
+
+void AudioLevelMonitor::start()
+{
+    if (running.load()) {
+        return;
+    }
+    recordingMode = true;
+    running.store(true);
+    paused.store(false);
+    latestPeak.store(-1.0);
+
+    workerThread = std::thread(&AudioLevelMonitor::runDeviceLoop, this);
+
+    recordingTimer = new QTimer(this);
+    connect(recordingTimer, &QTimer::timeout, this, &AudioLevelMonitor::onRecordingTimer);
+    recordingTimer->start(10);  
+}
+
+void AudioLevelMonitor::startFile(const QString &path)
+{
+    if (running.load()) {
+        stop();
+    }
+    fileSource = path;
+    recordingMode = false;
+    running.store(true);
+    paused.store(false);
+    workerThread = std::thread(&AudioLevelMonitor::runLoop, this);
+}
+
+void AudioLevelMonitor::stop()
+{
+    running.store(false);
+
+    if (recordingTimer) {
+        recordingTimer->stop();
+        delete recordingTimer;
+        recordingTimer = nullptr;
+    }
+
+    if (workerThread.joinable()) {
+        workerThread.join();
+    }
+}
+
+void AudioLevelMonitor::pause()
+{
+    paused.store(true);
+}
+
+void AudioLevelMonitor::resume()
+{
+    paused.store(false);
+}
+
+// Main-thread timer (10ms). Atomically reads and resets latestPeak, then
+// emits levelReady. This avoids cross-thread signal delivery issues.
+void AudioLevelMonitor::onRecordingTimer()
+{
+    if (!running.load() || paused.load()) {
+        return;
+    }
+    qreal peak = latestPeak.exchange(-1.0);  // read and reset
+    if (peak >= 0.0) {
+        emit levelReady(peak);
+    }
+}
+
+void AudioLevelMonitor::runDeviceLoop()
+{
+    avdevice_register_all();
+    AVFormatContext *fmtCtx = avformat_alloc_context();
+    fmtCtx->interrupt_callback.callback = audioLevelMonitorInterruptCb;
+    fmtCtx->interrupt_callback.opaque = this;
+
+    int ret = -1;
+
+    // 尝试 ALSA
+    const AVInputFormat *alsaFmt = av_find_input_format("alsa");
+    if (alsaFmt) {
+        AVDictionary *options = nullptr;
+        av_dict_set(&options, "sample_rate", "44100", 0);
+        av_dict_set(&options, "channels", "1", 0);
+        av_dict_set(&options, "fragment_size", "1024", 0);
+
+        ret = avformat_open_input(&fmtCtx, "default", alsaFmt, &options);
+        av_dict_free(&options);
+
+        if (ret < 0) {
+            qDebug() << "AudioLevelMonitor: ALSA 'default' failed, trying PulseAudio...";
+        }
+    } else {
+        qDebug() << "AudioLevelMonitor: FFmpeg has no ALSA support";
+    }
+
+    // 回退到 PulseAudio
+    if (ret < 0) {
+        const AVInputFormat *pulseFmt = av_find_input_format("pulse");
+        if (pulseFmt) {
+            AVDictionary *options = nullptr;
+            av_dict_set(&options, "sample_rate", "44100", 0);
+            av_dict_set(&options, "channels", "1", 0);
+            av_dict_set(&options, "fragment_size", "1024", 0);
+
+            ret = avformat_open_input(&fmtCtx, "default", pulseFmt, &options);
+            av_dict_free(&options);
+
+            if (ret < 0) {
+                qDebug() << "AudioLevelMonitor: PulseAudio 'default' also failed";
+            }
+        } else {
+            qDebug() << "AudioLevelMonitor: FFmpeg has no PulseAudio support";
+        }
+    }
+
+    if (ret < 0) {
+        qDebug() << "AudioLevelMonitor: cannot open any audio device for level monitoring";
+        avformat_free_context(fmtCtx);
+        return;
+    }
+
+    qDebug() << "AudioLevelMonitor: device opened successfully";
+
+    if (avformat_find_stream_info(fmtCtx, nullptr) < 0) {
+        avformat_close_input(&fmtCtx);
+        return;
+    }
+
+    int audioStreamIdx = -1;
+    for (unsigned i = 0; i < fmtCtx->nb_streams; ++i) {
+        if (fmtCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+            audioStreamIdx = i;
+            break;
+        }
+    }
+    if (audioStreamIdx < 0) {
+        avformat_close_input(&fmtCtx);
+        return;
+    }
+
+    AVCodecParameters *codecPar = fmtCtx->streams[audioStreamIdx]->codecpar;
+    const AVCodec *codec = avcodec_find_decoder(codecPar->codec_id);
+    if (!codec) {
+        avformat_close_input(&fmtCtx);
+        return;
+    }
+    AVCodecContext *codecCtx = avcodec_alloc_context3(codec);
+    avcodec_parameters_to_context(codecCtx, codecPar);
+    if (avcodec_open2(codecCtx, codec, nullptr) < 0) {
+        avcodec_free_context(&codecCtx);
+        avformat_close_input(&fmtCtx);
+        return;
+    }
+
+    AVPacket *packet = av_packet_alloc();
+    AVFrame *frame = av_frame_alloc();
+
+    while (running.load() && !paused.load()) {
+        ret = av_read_frame(fmtCtx, packet);
+        if (ret < 0) {
+            break;
+        }
+
+        if (packet->stream_index == audioStreamIdx) {
+            ret = avcodec_send_packet(codecCtx, packet);
+            while (ret >= 0) {
+                ret = avcodec_receive_frame(codecCtx, frame);
+                if (ret < 0) {
+                    break;
+                }
+
+                int channels = codecCtx->ch_layout.nb_channels > 0
+                                   ? codecCtx->ch_layout.nb_channels
+                                   : 1;
+                qreal peak = computeFramePeak(frame, channels);
+                // Store the maximum peak since last timer poll.
+                qreal prev = latestPeak.load();
+                while (peak > prev && !latestPeak.compare_exchange_weak(prev, peak)) {}
+            }
+        }
+        av_packet_unref(packet);
+    }
+
+    av_frame_free(&frame);
+    av_packet_free(&packet);
+    avcodec_free_context(&codecCtx);
+    avformat_close_input(&fmtCtx);
+}
+
+void AudioLevelMonitor::runFileLoop(AVFormatContext *fmtCtx, int audioStreamIdx)
+{
+    AVCodecContext *codecCtx = nullptr;
+    // Stream already located by runLoop(); just open the codec.
+    AVCodecParameters *codecPar = fmtCtx->streams[audioStreamIdx]->codecpar;
+    const AVCodec *codec = avcodec_find_decoder(codecPar->codec_id);
+    if (!codec) {
+        return;
+    }
+    codecCtx = avcodec_alloc_context3(codec);
+    avcodec_parameters_to_context(codecCtx, codecPar);
+    if (avcodec_open2(codecCtx, codec, nullptr) < 0) {
+        avcodec_free_context(&codecCtx);
+        return;
+    }
+
+    AVPacket *packet = av_packet_alloc();
+    AVFrame *frame = av_frame_alloc();
+
+    AVRational timeBase = fmtCtx->streams[audioStreamIdx]->time_base;
+    auto playbackStart = std::chrono::steady_clock::now();
+    int64_t startPtsUs = AV_NOPTS_VALUE;
+    int64_t pausedAccumUs = 0;
+    std::chrono::steady_clock::time_point pauseStart{};
+
+    while (running.load()) {
+        if (paused.load()) {
+            if (pauseStart == std::chrono::steady_clock::time_point{}) {
+                pauseStart = std::chrono::steady_clock::now();
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(30));
+            continue;
+        }
+        // Accumulate pause duration once on resume.
+        if (pauseStart != std::chrono::steady_clock::time_point{}) {
+            pausedAccumUs += std::chrono::duration_cast<std::chrono::microseconds>(
+                std::chrono::steady_clock::now() - pauseStart).count();
+            pauseStart = {};
+        }
+
+        int ret = av_read_frame(fmtCtx, packet);
+        if (ret < 0) {
+            break;  // EOF or error: playback finished
+        }
+
+        if (packet->stream_index == audioStreamIdx) {
+            ret = avcodec_send_packet(codecCtx, packet);
+            while (ret >= 0) {
+                ret = avcodec_receive_frame(codecCtx, frame);
+                if (ret < 0) {
+                    break;
+                }
+
+                // Pace output by the frame's presentation timestamp so the
+                // waveform advances in sync with real-time playback.
+                if (frame->pts != AV_NOPTS_VALUE) {
+                    int64_t ptsUs = av_rescale_q(frame->pts, timeBase, {1, 1000000});
+                    if (startPtsUs == AV_NOPTS_VALUE) {
+                        startPtsUs = ptsUs;
+                    }
+                    int64_t elapsedUs = std::chrono::duration_cast<std::chrono::microseconds>(
+                        std::chrono::steady_clock::now() - playbackStart).count() - pausedAccumUs;
+                    int64_t waitUs = (ptsUs - startPtsUs) - elapsedUs;
+                    if (waitUs > 0) {
+                        std::this_thread::sleep_for(std::chrono::microseconds(waitUs));
+                    }
+                }
+
+                int channels = codecCtx->ch_layout.nb_channels > 0
+                                   ? codecCtx->ch_layout.nb_channels
+                                   : 1;
+                qreal peak = computeFramePeak(frame, channels);
+                emit levelReady(peak);
+            }
+        }
+        av_packet_unref(packet);
+    }
+
+    av_frame_free(&frame);
+    av_packet_free(&packet);
+    avcodec_free_context(&codecCtx);
+}
+
+void AudioLevelMonitor::runLoop()
+{
+    AVFormatContext *fmtCtx = avformat_alloc_context();
+    if (!fmtCtx) {
+        return;
+    }
+    fmtCtx->interrupt_callback.callback = audioLevelMonitorInterruptCb;
+    fmtCtx->interrupt_callback.opaque = this;
+
+    QByteArray pathBytes = fileSource.toUtf8();
+    if (avformat_open_input(&fmtCtx, pathBytes.constData(), nullptr, nullptr) < 0) {
+        avformat_free_context(fmtCtx);
+        qDebug() << "AudioLevelMonitor: failed to open file" << fileSource;
+        return;
+    }
+
+    if (avformat_find_stream_info(fmtCtx, nullptr) < 0) {
+        avformat_close_input(&fmtCtx);
+        return;
+    }
+    int audioStreamIdx = -1;
+    for (unsigned i = 0; i < fmtCtx->nb_streams; ++i) {
+        if (fmtCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+            audioStreamIdx = i;
+            break;
+        }
+    }
+    if (audioStreamIdx < 0) {
+        avformat_close_input(&fmtCtx);
+        return;
+    }
+
+    runFileLoop(fmtCtx, audioStreamIdx);
+    avformat_close_input(&fmtCtx);
+}
 
 RecordPage::RecordPage(QWidget *parent) : QWidget(parent)
 {
@@ -132,10 +518,9 @@ RecordPage::RecordPage(QWidget *parent) : QWidget(parent)
     audioRecorder->setContainerFormat("wav");
 #endif
 
-    audioProbe = new QAudioProbe(this);
-    if (audioProbe->setSource(audioRecorder)) {
-        connect(audioProbe, SIGNAL(audioBufferProbed(QAudioBuffer)), this, SLOT(renderLevel(QAudioBuffer)));
-    }
+    // FFmpeg-based level monitor replaces QAudioProbe (deprecated/removed in newer Qt).
+    audioLevelMonitor = new AudioLevelMonitor(this);
+    connect(audioLevelMonitor, &AudioLevelMonitor::levelReady, this, &RecordPage::renderLevel);
 
     tickerTimer = new QTimer(this);
     connect(tickerTimer, SIGNAL(timeout()), this, SLOT(renderRecordingTime()));
@@ -199,11 +584,13 @@ void RecordPage::startRecord()
     QDateTime currentTime = QDateTime::currentDateTime();
     lastUpdateTime = currentTime;
     audioRecorder->record();
+    audioLevelMonitor->start();
 }
 
 void RecordPage::stopRecord()
 {
     audioRecorder->stop();
+    audioLevelMonitor->stop();
     tickerTimer->stop();
 }
 
@@ -219,6 +606,7 @@ void RecordPage::exitRecord()
 void RecordPage::pauseRecord()
 {
     audioRecorder->pause();
+    audioLevelMonitor->pause();
 }
 
 void RecordPage::resumeRecord()
@@ -227,6 +615,7 @@ void RecordPage::resumeRecord()
     lastUpdateTime = currentTime;
 
     audioRecorder->record();
+    audioLevelMonitor->resume();
 }
 
 QString RecordPage::generateRecordingFilepath()
@@ -239,16 +628,16 @@ QString RecordPage::getRecordingFilepath()
     return recordPath;
 }
 
-void RecordPage::renderLevel(const QAudioBuffer &buffer)
+void RecordPage::renderLevel(qreal level)
 {
+    qreal mapped = pow(level, 0.8); 
+    if (mapped > 1.0) mapped = 1.0;
+
     QDateTime currentTime = QDateTime::currentDateTime();
     recordingTime += lastUpdateTime.msecsTo(currentTime);
     lastUpdateTime = currentTime;
 
-    QVector<qreal> levels = Waveform::getBufferLevels(buffer);
-    for (int i = 0; i < levels.count(); ++i) {
-        waveform->updateWave(levels.at(i));
-    }
+    waveform->updateWave(mapped);
 }
 
 bool RecordPage::eventFilter(QObject *, QEvent *event)

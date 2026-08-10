@@ -24,9 +24,10 @@
 #ifndef RECORDPAGE_H
 #define RECORDPAGE_H
 
-#include <QAudioProbe>
 #include <QAudioRecorder>
 #include <QVBoxLayout>
+#include <atomic>
+#include <thread>
 
 #include "dimagebutton.h"
 #include "expand_animation_button.h"
@@ -35,6 +36,51 @@
 #include "waveform.h"
 
 DWIDGET_USE_NAMESPACE
+
+class QTimer;
+class QFile;
+
+struct AVFormatContext;
+struct AVCodecContext;
+
+class AudioLevelMonitor : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit AudioLevelMonitor(QObject *parent = nullptr);
+    ~AudioLevelMonitor();
+
+    void start();                        // recording mode (device capture)
+    void startFile(const QString &path);  // playback mode
+    void stop();
+    void pause();
+    void resume();
+
+    // Used by the FFmpeg interrupt callback to abort blocking reads on stop().
+    bool isRunning() const { return running.load(); }
+
+signals:
+    void levelReady(qreal level);
+
+private slots:
+    void onRecordingTimer();
+
+private:
+    void runDeviceLoop();
+    void runLoop();
+    void runFileLoop(AVFormatContext *fmtCtx, int audioStreamIdx);
+
+    QTimer *recordingTimer;               
+    std::atomic<double> latestPeak;       
+
+    std::thread workerThread;
+
+    std::atomic<bool> running;
+    std::atomic<bool> paused;
+    QString fileSource;
+    bool recordingMode;
+};
 
 class RecordPage : public QWidget
 {
@@ -63,7 +109,7 @@ public slots:
     void handleExpandAnimationFinish();
     void handleShrankAnimationFinish();
     void pauseRecord();
-    void renderLevel(const QAudioBuffer &buffer);
+    void renderLevel(qreal level);
     void renderRecordingTime();
     void resumeRecord();
     void startRecord();
@@ -71,7 +117,7 @@ public slots:
     
 private:
     ExpandAnimationButton *expandAnimationButton;
-    QAudioProbe *audioProbe;
+    AudioLevelMonitor *audioLevelMonitor;
     QAudioRecorder *audioRecorder;
     QDateTime lastUpdateTime;
     QHBoxLayout *buttonLayout;

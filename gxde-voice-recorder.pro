@@ -8,7 +8,7 @@ INCLUDEPATH += .
 
 CONFIG += link_pkgconfig
 CONFIG += c++11 
-PKGCONFIG += dtkwidget libavformat libavcodec libavutil
+PKGCONFIG += dtkwidget libavformat libavcodec libavutil libavdevice
 RESOURCES = gxde-voice-recorder.qrc
 
 # Input

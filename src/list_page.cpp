@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */ 
 
-#include <QAudioProbe>
 #include <QDebug>
 #include <QMediaPlayer>
 #include <QVBoxLayout>
@@ -30,6 +29,7 @@
 
 #include "dimagebutton.h"
 #include "list_page.h"
+#include "record_page.h"  
 #include "utils.h"
 
 DWIDGET_USE_NAMESPACE
@@ -50,10 +50,10 @@ ListPage::ListPage(QWidget *parent) : QWidget(parent)
     audioPlayer = new QMediaPlayer(this);
 
     connect(audioPlayer, SIGNAL(stateChanged(QMediaPlayer::State)), this, SLOT(handleStateChanged(QMediaPlayer::State)));
-    audioProbe = new QAudioProbe(this);
-    if (audioProbe->setSource(audioPlayer)) {
-        connect(audioProbe, SIGNAL(audioBufferProbed(QAudioBuffer)), this, SLOT(renderLevel(QAudioBuffer)));
-    }
+
+    // FFmpeg-based level monitor replaces QAudioProbe (deprecated/removed in newer Qt).
+    audioLevelMonitor = new AudioLevelMonitor(this);
+    connect(audioLevelMonitor, &AudioLevelMonitor::levelReady, this, &ListPage::renderLevel);
 
     waveform = new Waveform(this);
     waveform->hide();
@@ -62,7 +62,7 @@ ListPage::ListPage(QWidget *parent) : QWidget(parent)
         Utils::getQrcPath("record_small_hover.svg"),
         Utils::getQrcPath("record_small_press.svg")
         );
-    
+
     connect(recordButton, SIGNAL(clicked()), this, SLOT(handleClickRecordButton()));
 
     layout->addWidget(fileView, 0, Qt::AlignHCenter);
@@ -77,7 +77,8 @@ void ListPage::handleClickRecordButton()
 {
     // Must stop player before new record.
     audioPlayer->stop();
-        
+    audioLevelMonitor->stop();
+
     emit clickRecordButton();
 }
 
@@ -85,47 +86,52 @@ void ListPage::play(QString filepath)
 {
     if (filepath != getPlayingFilepath()) {
         audioPlayer->stop();
+        audioLevelMonitor->stop();
     }
 
     waveform->show();
+    waveform->clearWave();
 
     audioPlayer->setMedia(QUrl::fromLocalFile(filepath));
     audioPlayer->play();
+    audioLevelMonitor->startFile(filepath);
 }
 
 void ListPage::pause(QString)
 {
     audioPlayer->pause();
+    audioLevelMonitor->pause();
 }
 
 void ListPage::resume(QString)
 {
     audioPlayer->play();
+    audioLevelMonitor->resume();
 }
 
 void ListPage::stop(QString filepath)
 {
     if (filepath == getPlayingFilepath()) {
         audioPlayer->stop();
+        audioLevelMonitor->stop();
     }
 }
 
 void ListPage::stopPlayer()
 {
     audioPlayer->stop();
+    audioLevelMonitor->stop();
 }
 
-void ListPage::renderLevel(const QAudioBuffer &buffer)
+void ListPage::renderLevel(qreal level)
 {
-    QVector<qreal> levels = Waveform::getBufferLevels(buffer);
-    for (int i = 0; i < levels.count(); ++i) {
-        waveform->updateWave(levels.at(i));
-    }
+    waveform->updateWave(level);
 }
 
 void ListPage::handleStateChanged(QMediaPlayer::State state)
 {
     if (state == QMediaPlayer::StoppedState) {
+        audioLevelMonitor->stop();
         emit playFinished(getPlayingFilepath());
 
         waveform->hide();

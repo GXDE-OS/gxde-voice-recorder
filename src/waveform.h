@@ -24,7 +24,6 @@
 #ifndef WAVEFORM_H
 #define WAVEFORM_H
 
-#include <QAudioProbe>
 #include <QDateTime>
 #include <QEvent>
 #include <QTimer>
@@ -41,15 +40,9 @@ class Waveform : public QWidget
 
 public:
     Waveform(QWidget *parent = 0);
-    
-    static qreal getPeakValue(const QAudioFormat &format);
-    static QVector<qreal> getBufferLevels(const QAudioBuffer &buffer);
 
-    template <class T>
-    static QVector<qreal> getBufferLevels(const T *buffer, int frames, int channels);
-                                                                                    
     void clearWave();
-                                                                                    
+
 public slots:
     void renderWave();
     void updateWave(float sample);

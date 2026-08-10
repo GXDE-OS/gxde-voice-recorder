@@ -24,7 +24,6 @@
 #ifndef LISTPAGE_H
 #define LISTPAGE_H
 
-#include <QAudioProbe>
 #include <QMediaPlayer>
 #include <QVBoxLayout>
 
@@ -34,36 +33,38 @@
 
 DWIDGET_USE_NAMESPACE
 
+class AudioLevelMonitor;
+
 class ListPage : public QWidget
 {
     Q_OBJECT
-    
+
 public:
     ListPage(QWidget *parent = 0);
-    
+
     DImageButton *recordButton;
     FileView *fileView;
     QVBoxLayout *layout;
-                       
+
     QString getPlayingFilepath();
-    
+
 public slots:
     void handleClickRecordButton();
     void handleStateChanged(QMediaPlayer::State state);
     void pause(QString filepath);
     void play(QString filepath);
-    void renderLevel(const QAudioBuffer &buffer);
+    void renderLevel(qreal level);
     void resume(QString filepath);
     void selectItemWithPath(QString path);
     void stop(QString filepath);
     void stopPlayer();
-    
+
 signals:
     void clickRecordButton();
     void playFinished(QString filepath);
-    
-private:    
-    QAudioProbe *audioProbe;
+
+private:
+    AudioLevelMonitor *audioLevelMonitor;
     QMediaPlayer *audioPlayer;
     Waveform *waveform;
 };
