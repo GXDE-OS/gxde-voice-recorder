@@ -9,6 +9,6 @@ Homepage: https://github.com/GXDE-OS/gxde-voice-recorder
 Package: gxde-voice-recorder
 Architecture: any
 Replaces: deepin-voice-recorder
-Depends: ${shlibs:Depends}, ${misc:Depends}, libqt5multimedia5-plugins
+Depends: ${shlibs:Depends}, ${misc:Depends}, libqt5multimedia5-plugins, pipewire-pulse | pipewire-alsa | pulseaudio
 Description: Voice recorder application for GXDE
  GXDE voice recorder tool.
