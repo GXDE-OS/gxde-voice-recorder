@@ -72,6 +72,8 @@ MainWindow::MainWindow(DMainWindow *parent) : DMainWindow(parent)
     stackedLayout = new QStackedLayout();
     layoutWidget->setLayout(stackedLayout);
 
+    setEnableWindowBackground(true);
+
     showFirstPage();
 }
 
