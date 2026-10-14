@@ -1,0 +1,37 @@
+# Maintainer: CharOfString <root@charofstring.cc>
+pkgname=gxde-voice-recorder-git
+pkgver=2.0.1
+pkgrel=1
+pkgdesc='Voice recorder application for GXDE'
+arch=('x86_64' 'aarch64')
+url="https://github.com/GXDE-OS/gxde-voice-recorder"
+license=('GPL-3.0-or-later')
+depends=('dtk2widget-qt6-git' 'dtk6core-git' 'qt6-base' 'qt6-multimedia' 'ffmpeg' 'hicolor-icon-theme' 'libgcc'
+         'libstdc++' 'glibc')
+makedepends=('git' 'pkgconf' 'qt6-tools')
+provides=('gxde-voice-recorder')
+conflicts=('gxde-voice-recorder')
+source=()
+sha512sums=()
+
+# 直接使用 PKGBUILD 所在的 git 仓库作为源码 ・ Build from the git checkout this PKGBUILD lives in.
+_srcroot() {
+  git -C "$startdir" rev-parse --show-toplevel
+}
+
+build() {
+  # 与 debian/rules 相同 ・ Same as debian/rules.
+  mkdir -p build
+  cd build
+  qmake6 "$(_srcroot)/gxde-voice-recorder.pro" \
+    PREFIX=/usr \
+    DEFINES+="VERSION=$pkgver" \
+    QMAKE_CFLAGS_RELEASE="$CFLAGS" \
+    QMAKE_CXXFLAGS_RELEASE="$CXXFLAGS" \
+    QMAKE_LFLAGS_RELEASE="$LDFLAGS"
+  make
+}
+
+package() {
+  make -C build INSTALL_ROOT="$pkgdir" install
+}
