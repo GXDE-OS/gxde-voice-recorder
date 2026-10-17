@@ -51,7 +51,8 @@ ListPage::ListPage(QWidget *parent) : QWidget(parent)
     audioOutput = new QAudioOutput(this);
     audioPlayer->setAudioOutput(audioOutput);
 
-    connect(audioPlayer, SIGNAL(stateChanged(QMediaPlayer::State)), this, SLOT(handleStateChanged(QMediaPlayer::State)));
+    // 修复播放结束后按钮状态错误及波形残留，播放中断后波形残留的问题
+    connect(audioPlayer, &QMediaPlayer::playbackStateChanged, this, &ListPage::handleStateChanged);
 
     // FFmpeg-based level monitor replaces QAudioProbe (deprecated/removed in newer Qt).
     audioLevelMonitor = new AudioLevelMonitor(this);
@@ -143,11 +144,7 @@ void ListPage::handleStateChanged(QMediaPlayer::PlaybackState state)
 
 QString ListPage::getPlayingFilepath()
 {
-    if (audioPlayer->hasAudio()) {
-        return audioPlayer->source().toLocalFile();
-    } else {
-        return "";
-    }
+    return audioPlayer->source().toLocalFile();
 }
 
 void ListPage::selectItemWithPath(QString path)
