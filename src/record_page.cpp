@@ -280,7 +280,18 @@ void AudioLevelMonitor::runDeviceLoop()
     AVPacket *packet = av_packet_alloc();
     AVFrame *frame = av_frame_alloc();
 
-    while (running.load() && !paused.load()) {
+    // 修复录音暂停后再恢复录音此时会波形停止更新的问题
+    while (running.load()) {
+        if (paused.load()) {
+            ret = av_read_frame(fmtCtx, packet);
+            if (ret < 0) {
+                break;
+            }
+            av_packet_unref(packet);
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            continue;
+        }
+
         ret = av_read_frame(fmtCtx, packet);
         if (ret < 0) {
             break;
