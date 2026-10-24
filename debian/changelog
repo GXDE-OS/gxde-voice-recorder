@@ -1,4 +1,4 @@
-gxde-voice-recorder (2.0.2) UNRELEASED; urgency=medium
+gxde-voice-recorder (2.0.3) UNRELEASED; urgency=medium
 
   [ zeqi ]
   * 完善简体中文、繁体中文（HK）和繁体中文（TW）的支持
@@ -8,8 +8,9 @@ gxde-voice-recorder (2.0.2) UNRELEASED; urgency=medium
 
   [ gfdgd_xi ]
   * 支持设置程序壁纸
+  * feat: 优化界面ui
 
- -- gfdgd_xi <3025613752@qq.com>  Sun, 18 Oct 2026 11:50:16 +0800
+ -- gfdgd_xi <3025613752@qq.com>  Sat, 24 Oct 2026 12:55:20 +0800
 
 gxde-voice-recorder (1.4.3) UNRELEASED; urgency=medium
 
