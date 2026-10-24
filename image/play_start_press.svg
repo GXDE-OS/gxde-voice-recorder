@@ -5,8 +5,8 @@
     <desc>Created with Sketch.</desc>
     <defs>
         <linearGradient x1="50%" y1="0%" x2="50%" y2="100%" id="linearGradient-1">
-            <stop stop-color="#0B8CFF" offset="0%"></stop>
-            <stop stop-color="#0AA1FF" offset="100%"></stop>
+            <stop stop-color="#FF8C8C" offset="0%"></stop>
+            <stop stop-color="#FF5F5F" offset="100%"></stop>
         </linearGradient>
         <circle id="path-2" cx="14" cy="14" r="14"></circle>
         <filter x="-25.0%" y="-17.9%" width="150.0%" height="150.0%" filterUnits="objectBoundingBox" id="filter-3">
@@ -22,7 +22,7 @@
                 <g id="Oval-2">
                     <use fill="black" fill-opacity="1" filter="url(#filter-3)" xlink:href="#path-2"></use>
                     <use fill="url(#linearGradient-1)" fill-rule="evenodd" xlink:href="#path-2"></use>
-                    <circle stroke-opacity="0.3" stroke="#1D82FF" stroke-width="1.5" cx="14" cy="14" r="13.25"></circle>
+                    <circle stroke-opacity="0.3" stroke="#FC3232" stroke-width="1.5" cx="14" cy="14" r="13.25"></circle>
                 </g>
                 <polygon id="Triangle" fill="#FFFFFF" points="20 14 12 19 12 9"></polygon>
             </g>

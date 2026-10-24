@@ -33,6 +33,7 @@ extern "C" {
 #include <QDebug>
 #include <QDir>
 #include <QEvent>
+#include <QFont>
 #include <QTimer>
 #include <QWidget>
 #include <QThread>
@@ -74,6 +75,11 @@ FileItem::FileItem(QWidget *parent) : QWidget(parent)
     nameLabel = new Label();
     connect(nameLabel, &Label::mouseMove, this, &FileItem::switchPlay);
     lineEdit = new LineEdit();
+    // Keep the filename element at a single size: match the 14px name label
+    // so the item doesn't switch sizes between display and rename states.
+    QFont lineEditFont;
+    lineEditFont.setPixelSize(14);
+    lineEdit->setFont(lineEditFont);
 
     durationLabel = new Label();
     connect(durationLabel, &Label::mouseMove, this, &FileItem::switchPlay);
