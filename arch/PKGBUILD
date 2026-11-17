@@ -1,16 +1,17 @@
 # Maintainer: CharOfString <root@charofstring.cc>
-pkgname=gxde-voice-recorder-git
+pkgname=gxde-voice-recorder
 pkgver=2.0.3
 pkgrel=1
 pkgdesc='Voice recorder application for GXDE'
 arch=('x86_64' 'aarch64')
 url="https://github.com/GXDE-OS/gxde-voice-recorder"
 license=('GPL-3.0-or-later')
-depends=('dtk2widget-qt6-git' 'dtk6core-git' 'qt6-base' 'qt6-multimedia' 'ffmpeg' 'hicolor-icon-theme' 'libgcc'
+depends=('dtk2widget-qt6' 'gxde-dtk6core' 'qt6-base' 'qt6-multimedia' 'ffmpeg' 'hicolor-icon-theme' 'libgcc'
          'libstdc++' 'glibc')
 makedepends=('git' 'pkgconf' 'qt6-tools')
-provides=('gxde-voice-recorder')
-conflicts=('gxde-voice-recorder')
+provides=("gxde-voice-recorder-git=$pkgver")
+conflicts=('gxde-voice-recorder-git')
+replaces=('gxde-voice-recorder-git')
 source=()
 sha512sums=()
 
